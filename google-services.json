@@ -1,0 +1,78 @@
+{
+  "project_info": {
+    "project_number": "298994560137",
+    "project_id": "appsoulciety-b8a70",
+    "storage_bucket": "appsoulciety-b8a70.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:298994560137:android:115d3a2f18c972d7b7aa58",
+        "android_client_info": {
+          "package_name": "com.bodruddozaredoy.soulciety"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "298994560137-94n6m6jolaakolb219mf8m0d228nj9rp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bodruddozaredoy.soulciety",
+            "certificate_hash": "0b2c6bcffcf5cfe9a97f61876cd0ab4d91b8f453"
+          }
+        },
+        {
+          "client_id": "298994560137-ekucvlf2ivf70rimjl1i27mrjdot0454.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bodruddozaredoy.soulciety",
+            "certificate_hash": "73fcbc287384b1059a9286fab3d7a83e5286d82a"
+          }
+        },
+        {
+          "client_id": "298994560137-s11fscj9815nlrg9q5jejl4ibqe7h2do.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bodruddozaredoy.soulciety",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "298994560137-vecpcdu5u30r8h5u5g0teri5n34d76vs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bodruddozaredoy.soulciety",
+            "certificate_hash": "3d464ffebc2a0706a3347ca7e5e50f13a738b1d6"
+          }
+        },
+        {
+          "client_id": "298994560137-6hp6e107r9kr58q24comvvgg3tjkimvj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-Tpsx-5uJy5uy5uors48_luWGybqtKYo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "298994560137-6hp6e107r9kr58q24comvvgg3tjkimvj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "298994560137-m62fhlficjv01d2u07rtf27opvu320ue.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bodruddozaredoy.soulciety"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
