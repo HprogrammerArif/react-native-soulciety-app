@@ -9,19 +9,13 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
       "autoIncrement": true
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "bodruddozaredoy@gmail.com",
-        "appleTeamId": "N473YVKDDJ",
-        "ascAppId": "6759997527"
-      }
     }
   }
 }
