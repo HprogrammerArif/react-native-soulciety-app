@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
+import ErrorBoundary from "@/components/global/ErrorBoundary";
 import "../global.css";
 
 import {
@@ -251,20 +252,22 @@ export default function RootLayout() {
   // Main App
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <KeyboardProvider>
-        <BottomSheetModalProvider>
-          <QueryClientProvider client={queryClient}>
-            <StatusBar
-              barStyle="dark-content"
-              backgroundColor="transparent"
-            />
+      <ErrorBoundary>
+        <KeyboardProvider>
+          <BottomSheetModalProvider>
+            <QueryClientProvider client={queryClient}>
+              <StatusBar
+                barStyle="dark-content"
+                backgroundColor="transparent"
+              />
 
-            <Stack screenOptions={{ headerShown: false }} />
+              <Stack screenOptions={{ headerShown: false }} />
 
-            <Toast config={toastConfig} />
-          </QueryClientProvider>
-        </BottomSheetModalProvider>
-      </KeyboardProvider>
+              <Toast config={toastConfig} />
+            </QueryClientProvider>
+          </BottomSheetModalProvider>
+        </KeyboardProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

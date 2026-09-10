@@ -7,7 +7,8 @@ import Feather from "@expo/vector-icons/Feather";
 import Checkbox from "expo-checkbox";
 import { router } from "expo-router";
 import { Eye, EyeOff } from "lucide-react-native";
-import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -37,6 +38,22 @@ export default function LoginScreen() {
 
   const { login, googleLogin, appleLogin } = useUser();
 
+  // ---------------- LOAD REMEMBERED EMAIL ----------------
+  useEffect(() => {
+    const loadRemembered = async () => {
+      try {
+        const savedEmail = await AsyncStorage.getItem("@remembered_email");
+        if (savedEmail) {
+          setEmail(savedEmail);
+          setRemember(true);
+        }
+      } catch (e) {
+        if (__DEV__) console.log("Failed to load remembered email", e);
+      }
+    };
+    loadRemembered();
+  }, []);
+
   // ---------------- VALIDATION ----------------
   const validate = () => {
     const newErrors: Errors = {};
@@ -62,11 +79,16 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      console.log("Logging...")
+      if (__DEV__) console.log("Logging...")
       await login({
         email,
         password,
       });
+      if (remember) {
+        await AsyncStorage.setItem("@remembered_email", email.trim());
+      } else {
+        await AsyncStorage.removeItem("@remembered_email");
+      }
       setTimeout(() => {
         Toast.show({
           type: "success",
@@ -76,7 +98,7 @@ export default function LoginScreen() {
       }, 200);
       router.replace("/(welcome)");
     } catch (error: any) {
-      console.log("RESPONSE_DATA", error?.response?.data);
+      if (__DEV__) console.log("RESPONSE_DATA", error?.response?.data);
       // console.log("RESPONSE_DATA");
       Toast.show({
         type: "error",
@@ -111,7 +133,7 @@ export default function LoginScreen() {
 
       router.replace("/(welcome)");
     } catch (error: any) {
-      console.log("Google Login Error", error);
+      if (__DEV__) console.log("Google Login Error", error);
       Toast.show({
         type: "error",
         text1: "Google login failed",
@@ -153,7 +175,7 @@ export default function LoginScreen() {
 
       router.replace("/(welcome)");
     } catch (error: any) {
-      console.log("Apple Login Error", error);
+      if (__DEV__) console.log("Apple Login Error", error);
       
       // Don't show error if user canceled
       if (error?.code === 'ERR_REQUEST_CANCELED') {
@@ -295,12 +317,7 @@ export default function LoginScreen() {
             <ActivityIndicator size="small" color="#000" />
           ) : (
             <>
-              <Image
-                source={{
-                  uri: "https://img.icons8.com/?size=100&id=17949&format=png&color=000000",
-                }}
-                className="w-5 h-5"
-              />
+              <AntDesign name="google" size={20} color="#EA4335" />
               <Text className="font-medium">Continue with Google</Text>
             </>
           )}

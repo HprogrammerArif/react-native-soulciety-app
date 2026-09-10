@@ -53,7 +53,6 @@ export default function MoodTrackerScreen() {
 
   const insets = useSafeAreaInsets();
   const { moodKey, saveMood, loading, saving } = useMood();
-  console.log("saving", saving)
 
   const [currentMoodIndex, setCurrentMoodIndex] = useState<number>(DEFAULT_INDEX);
 

@@ -95,7 +95,7 @@ export default function SignupScreen() {
 
             router.push({ pathname: "/(auth)/otp", params: { email: email } });
         } catch (error: any) {
-            console.log("RESPONSE_DATA", error?.response?.data);
+            if (__DEV__) console.log("RESPONSE_DATA", error?.response?.data);
             Toast.show({
                 type: "error",
                 text1: "Signup failed",
@@ -233,11 +233,31 @@ export default function SignupScreen() {
                 />
 
                 {/* Login */}
-                <View className="mt-10 flex-row justify-center">
+                <View className="mt-6 flex-row justify-center">
                     <Text className="text-gray-600">Already have an account? </Text>
                     <TouchableOpacity onPress={() => router.push("/login")}>
                         <Text className="text-yellow-600 font-semibold">Login</Text>
                     </TouchableOpacity>
+                </View>
+
+                {/* Legal Links */}
+                <View className="mt-4 mb-6 items-center">
+                    <Text className="text-gray-400 text-xs text-center leading-5">
+                        By signing up, you agree to our{" "}
+                        <Text
+                            className="text-yellow-600 underline"
+                            onPress={() => router.push({ pathname: "/profile/legal", params: { type: "terms" } })}
+                        >
+                            Terms of Service
+                        </Text>
+                        {" "}and{" "}
+                        <Text
+                            className="text-yellow-600 underline"
+                            onPress={() => router.push({ pathname: "/profile/legal", params: { type: "privacy" } })}
+                        >
+                            Privacy Policy
+                        </Text>
+                    </Text>
                 </View>
             </SafeAreaView>
         </KeyboardAwareWrapper>

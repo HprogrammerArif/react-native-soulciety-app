@@ -185,7 +185,7 @@ export default function VideoDetailScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => bookmarkMutation.mutate()}
-                  disabled={bookmarkMutation.isLoading}
+                  disabled={bookmarkMutation.isPending}
                 >
                   <FontAwesome
                     name={isBookmarked ? "bookmark" : "bookmark-o"}

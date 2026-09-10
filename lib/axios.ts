@@ -3,11 +3,25 @@ import axios, { AxiosHeaders } from "axios";
 import Constants from "expo-constants";
 
 let isRedirectingToLogin = false;
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+}> = [];
 
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 export const api = axios.create({
   baseURL: Constants.expoConfig?.extra?.BACKEND_URL,
-  // baseURL: "http://10.10.13.69:8000",
   timeout: 15000,
 });
 
@@ -16,7 +30,6 @@ api.interceptors.request.use(
   async (config) => {
     try {
       const token = await AsyncStorage.getItem("accessToken");
-      console.log("TOKEN", token);
 
       if (!config.headers) {
         config.headers = new AxiosHeaders();
@@ -26,33 +39,30 @@ api.interceptors.request.use(
         config.headers.set("Authorization", `Bearer ${token}`);
       }
 
-      // Log outgoing request details
-      console.log(
-        `[API Request] ${config.method?.toUpperCase()} ${config.url}`,
-        {
-          baseURL: config.baseURL,
-          params: config.params,
-          data: config.data ? "(payload included)" : "(no payload)",
-        },
-      );
+      // Log outgoing request details (dev only, no sensitive data)
+      if (__DEV__) {
+        console.log(
+          `[API Request] ${config.method?.toUpperCase()} ${config.url}`,
+        );
+      }
 
       return config;
     } catch (error) {
-      // Log request setup errors
-      console.error("[API Request Error] Failed to setup request:", {
-        error: error instanceof Error ? error.message : "Unknown error",
-        url: config.url,
-        method: config.method,
-      });
+      if (__DEV__) {
+        console.error("[API Request Error] Failed to setup request:", {
+          error: error instanceof Error ? error.message : "Unknown error",
+          url: config.url,
+        });
+      }
       return Promise.reject(error);
     }
   },
   (error) => {
-    // Log request interceptor errors
-    console.error("[API Request Interceptor Error]", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    if (__DEV__) {
+      console.error("[API Request Interceptor Error]", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
     return Promise.reject(error);
   },
 );
@@ -60,74 +70,106 @@ api.interceptors.request.use(
 /* ---------------- RESPONSE INTERCEPTOR ---------------- */
 api.interceptors.response.use(
   (res) => {
-    // Log successful responses
-    console.log(
-      `[API Response] ${res.config.method?.toUpperCase()} ${res.config.url}`,
-      {
-        status: res.status,
-        statusText: res.statusText,
-        dataSize: JSON.stringify(res.data).length + " bytes",
-      },
-    );
+    if (__DEV__) {
+      console.log(
+        `[API Response] ${res.config.method?.toUpperCase()} ${res.config.url} → ${res.status}`,
+      );
+    }
     return res;
   },
   async (error) => {
-    // Comprehensive error logging
-    if (error.response) {
-      // Server responded with error status
-      const status = error.response.status;
-      const errorInfo = {
-        status: status,
-        statusText: error.response.statusText,
-        url: error.config?.url,
-        method: error.config?.method?.toUpperCase(),
-        message: error.response.data?.message || error.message,
-        errorData: error.response.data,
-      };
+    const originalRequest = error.config;
 
-      // Use console.warn for expected/handled errors (4xx except rare cases)
-      // Use console.error only for server errors (5xx) or unexpected issues
-      if (status >= 400 && status < 500) {
-        console.warn("[API Client Error]", errorInfo);
-      } else if (status >= 500) {
-        console.error("[API Server Error]", errorInfo);
+    if (error.response) {
+      const status = error.response.status;
+
+      if (__DEV__) {
+        if (status >= 400 && status < 500) {
+          console.warn(`[API ${status}] ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`);
+        } else if (status >= 500) {
+          console.error(`[API ${status}] ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url}`);
+        }
       }
 
-      // Handle 401 Unauthorized
-      if (status === 401) {
-        console.warn("[API Auth] Unauthorized - Clearing access token");
-        await AsyncStorage.removeItem("accessToken");
+      // Handle 401 Unauthorized — attempt token refresh
+      if (status === 401 && !originalRequest._retry) {
+        if (isRefreshing) {
+          // Queue request while refresh is in progress
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          }).then((token) => {
+            originalRequest.headers["Authorization"] = `Bearer ${token}`;
+            return api(originalRequest);
+          });
+        }
 
-        // Optionally handle redirect to login
-        if (!isRedirectingToLogin) {
-          isRedirectingToLogin = true;
-          // Add navigation logic here if needed
-          setTimeout(() => {
-            isRedirectingToLogin = false;
-          }, 1000);
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+          const refreshToken = await AsyncStorage.getItem("refreshToken");
+
+          if (!refreshToken) {
+            throw new Error("No refresh token available");
+          }
+
+          const baseURL = Constants.expoConfig?.extra?.BACKEND_URL;
+          const { data } = await axios.post(`${baseURL}/api/auth/token/refresh/`, {
+            refresh: refreshToken,
+          });
+
+          const newAccessToken = data.access;
+          await AsyncStorage.setItem("accessToken", newAccessToken);
+
+          if (data.refresh) {
+            await AsyncStorage.setItem("refreshToken", data.refresh);
+          }
+
+          processQueue(null, newAccessToken);
+
+          originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+
+          // Refresh failed — clear tokens and redirect to login
+          await AsyncStorage.removeItem("accessToken");
+          await AsyncStorage.removeItem("refreshToken");
+
+          if (!isRedirectingToLogin) {
+            isRedirectingToLogin = true;
+            setTimeout(() => {
+              isRedirectingToLogin = false;
+            }, 1000);
+          }
+
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
         }
       }
 
       // Handle other common error statuses
-      if (status === 403) {
-        console.warn("[API Auth] Forbidden - Insufficient permissions");
-      } else if (status === 404) {
-        console.warn("[API Error] Resource not found");
+      if (__DEV__) {
+        if (status === 403) {
+          console.warn("[API Auth] Forbidden - Insufficient permissions");
+        } else if (status === 404) {
+          console.warn("[API Error] Resource not found");
+        }
       }
     } else if (error.request) {
-      // Request was made but no response received (network error)
-      console.warn("[API Network Error] No response received", {
-        url: error.config?.url,
-        method: error.config?.method?.toUpperCase(),
-        message: error.message,
-        code: error.code,
-      });
+      if (__DEV__) {
+        console.warn("[API Network Error] No response received", {
+          url: error.config?.url,
+          code: error.code,
+        });
+      }
     } else {
-      // Error during request setup
-      console.error("[API Error] Request setup failed", {
-        message: error.message,
-        stack: error.stack,
-      });
+      if (__DEV__) {
+        console.error("[API Error] Request setup failed", {
+          message: error.message,
+        });
+      }
     }
 
     return Promise.reject(error);

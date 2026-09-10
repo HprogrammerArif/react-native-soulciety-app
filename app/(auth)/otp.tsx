@@ -66,7 +66,7 @@ export default function OtpScreen() {
     setLoading(true);
 
     try {
-      console.log(code);
+      if (__DEV__) console.log(code);
       await verifyOtp({
         email,
         otp: code,
@@ -90,7 +90,7 @@ export default function OtpScreen() {
     } catch (error: any) {
       // console.log(JSON.stringify(error?.response, null, 2))
       const data = error?.response?.data;
-      console.log(error);
+      if (__DEV__) console.log(error);
 
       let errorMessage = "Invalid or expired OTP";
 
@@ -122,7 +122,7 @@ export default function OtpScreen() {
         text2: "Check your email",
       });
     } catch (err: any) {
-      console.log(err?.response?.data);
+      if (__DEV__) console.log(err?.response?.data);
       Toast.show({
         type: "error",
         text1: "Failed to resend OTP",

@@ -15,8 +15,8 @@ let isPlayingElevenLabs = false;
 // Voice ID for ElevenLabs
 const VOICE_ID = "pjcYQlDFKMbcOUp6F5GD";
 
-// ElevenLabs API Key (uses env variable or falls back to a placeholder)
-const ELEVENLABS_API_KEY = process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY || "sk_f14b09069913505b649bae0893f7134aa1ab7160a178411c";
+// ElevenLabs API Key — must be set via EXPO_PUBLIC_ELEVENLABS_API_KEY env variable
+const ELEVENLABS_API_KEY = process.env.EXPO_PUBLIC_ELEVENLABS_API_KEY || "";
 
 export interface SpeakOptions {
   onStart?: () => void;

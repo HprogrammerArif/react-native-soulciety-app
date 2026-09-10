@@ -3,7 +3,7 @@ import { updateMoodApi } from "@/services/mood.api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
-import { useUser } from "./useUser";
+import { useQueryClient } from "@tanstack/react-query";
 
 const STORAGE_KEY = "user_mood";
 
@@ -18,7 +18,7 @@ export function useMood() {
   const [moodKey, setMoodKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const { updateProfile } = useUser();
+  const queryClient = useQueryClient();
 
   // ---------- LOAD MOOD ----------
   const loadMood = async () => {
@@ -64,14 +64,14 @@ export function useMood() {
     try {
       await updateMoodApi(newMoodKey);
       await updateStoredProfile({ current_mood: newMoodKey });
-      await updateProfile({ current_mood: newMoodKey });
+      queryClient.setQueryData(["profile"], (old: any) => old ? { ...old, current_mood: newMoodKey } : old);
       if (showSuccessMessage) {
         setTimeout(() => {
           Toast.show({ type: "success", text1: "Mood saved!" });
         }, 200);
       }
     } catch (error: any) {
-      console.log("MOOD_API_ERROR", error?.response?.data);
+      if (__DEV__) console.log("MOOD_API_ERROR", error?.response?.data);
     } finally {
       setSaving(false);
     }

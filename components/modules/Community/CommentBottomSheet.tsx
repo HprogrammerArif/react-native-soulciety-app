@@ -24,7 +24,7 @@ interface Comment {
 
 interface Props {
     postId: number | null;
-    sheetRef: React.RefObject<BottomSheetModal>;
+    sheetRef: React.RefObject<BottomSheetModal | null>;
 }
 
 export default function CommentBottomSheet({ postId, sheetRef }: Props) {

@@ -24,6 +24,14 @@ const SkeletonItem = ({ width, height, style }: { width: number, height: number,
     <View style={[{ width, height, backgroundColor: '#f3f4f6', borderRadius: 16 }, style]} />
 );
 
+// Helper function for dynamic greeting
+const getGreeting = (): string => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+};
+
 export default function HomeScreen() {
     const { profile } = useUser();
     const [dailyQuote, setDailyQuote] = useState<any>(null);
@@ -41,11 +49,25 @@ export default function HomeScreen() {
                 await AsyncStorage.setItem('dailyQuote', JSON.stringify(res.data));
                 await AsyncStorage.setItem('quoteDate', today);
                 setDailyQuote(res.data);
-            } catch (error) { console.error(error); }
+            } catch (error) { if (__DEV__) console.error(error); }
         }
     }, []);
 
     useEffect(() => { loadQuote(); }, [loadQuote]);
+
+    // Fetch unread notification count
+    const { data: unreadCount } = useQuery({
+        queryKey: ["unread-notification-count"],
+        queryFn: async () => {
+            try {
+                const res = await api.get("/api/notifications/?unread=true");
+                return res.data?.notifications?.length ?? 0;
+            } catch {
+                return 0;
+            }
+        },
+        staleTime: 60 * 1000,
+    });
 
     const handleShareQuote = async () => {
         if (!dailyQuote) return;
@@ -55,7 +77,7 @@ export default function HomeScreen() {
                 message: `"${dailyQuote.text}"\n\n- ${dailyQuote.author}`,
             });
         } catch (error) {
-            console.error('Error sharing quote:', error);
+            if (__DEV__) console.error('Error sharing quote:', error);
         }
     };
 
@@ -87,7 +109,7 @@ export default function HomeScreen() {
 
     const handleOpenShopLink = (url: string) => {
         if (url) {
-            Linking.openURL(url).catch((err) => console.error("Couldn't load page", err));
+            Linking.openURL(url).catch((err) => { if (__DEV__) console.error("Couldn't load page", err); });
         }
     };
 
@@ -98,8 +120,6 @@ export default function HomeScreen() {
             </View>
         );
     }
-
-    console.log(POPULAR_DATA)
 
     return (
         <SafeAreaView className="flex-1 bg-white">
@@ -114,18 +134,30 @@ export default function HomeScreen() {
                 {/* ---------------- HEADER (Original) ---------------- */}
                 <View className="flex-row justify-between items-center mt-4 mb-6 border-b pb-4 border-gray-200">
                     <View className="flex-row items-center gap-3">
-                        <Image
-                            source={{ uri: profile?.data?.profile_picture_url || 'https://img.icons8.com/?size=100&id=zj0HDoXpmTPF&format=png&color=000000' }}
-                            className="size-16 rounded-full"
-                        />
+                        {profile?.data?.profile_picture_url ? (
+                            <Image
+                                source={{ uri: profile.data.profile_picture_url }}
+                                className="size-16 rounded-full"
+                            />
+                        ) : (
+                            <View className="size-16 rounded-full bg-yellow-100 items-center justify-center border border-yellow-200">
+                                <Ionicons name="person" size={28} color="#CA8A04" />
+                            </View>
+                        )}
                         <View>
-                            <Text className="text-gray-500 text-md font-semibold">Good afternoon</Text>
+                            <Text className="text-gray-500 text-md font-semibold">{getGreeting()}</Text>
                             <Text className="text-yellow-500 text-xl font-bold">{profile?.data?.full_name}</Text>
                         </View>
                     </View>
-                    <TouchableOpacity onPress={() => router.push('/home/notification')} className="bg-gray-100 p-2 rounded-full relative">
+                    <TouchableOpacity
+                        onPress={() => router.push('/home/notification')}
+                        className="bg-gray-100 p-2 rounded-full relative"
+                        accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}
+                    >
                         <Ionicons name="notifications-outline" size={24} color="black" />
-                        <View className='absolute top-2.5 right-3 size-2 rounded-full bg-red-500' />
+                        {unreadCount > 0 && (
+                            <View className='absolute top-2.5 right-3 size-2 rounded-full bg-red-500' />
+                        )}
                     </TouchableOpacity>
                 </View>
 
@@ -177,12 +209,14 @@ export default function HomeScreen() {
                         <TouchableOpacity
                             onPress={() => router.push("/home/spiritual")}
                             className="flex-1 h-20 rounded-[20px] overflow-hidden"
+                            accessibilityRole="button"
+                            accessibilityLabel="Spiritual practices"
                         >
                             <ImageBackground
-                                source={{ uri: 'https://aviaryrecoverycenter.com/wp-content/uploads/2016/12/spiritual-principle-of-acceptance-1.jpg' }}
+                                source={require("@/assets/images/spiritual-bg.jpg")}
                                 className="w-full h-full justify-center items-center"
                             >
-                                <View className="absolute inset-0 bg-black/60" />
+                                <View className="absolute inset-0 bg-black/40" />
                                 <Text className="text-white font-bold text-lg z-10">Spiritual</Text>
                             </ImageBackground>
                         </TouchableOpacity>
@@ -190,12 +224,14 @@ export default function HomeScreen() {
                         <TouchableOpacity
                             onPress={() => router.push("/home/journal")}
                             className="flex-1 h-20 rounded-[20px] overflow-hidden"
+                            accessibilityRole="button"
+                            accessibilityLabel="Journal and reflections"
                         >
                             <ImageBackground
-                                source={{ uri: 'https://img.freepik.com/free-photo/closeup-hands-writing-diary_53876-31160.jpg' }}
+                                source={require("@/assets/images/journal-bg.jpg")}
                                 className="w-full h-full justify-center items-center"
                             >
-                                <View className="absolute inset-0 bg-black/60" />
+                                <View className="absolute inset-0 bg-black/40" />
                                 <Text className="text-white font-bold text-lg z-10">Journal</Text>
                             </ImageBackground>
                         </TouchableOpacity>

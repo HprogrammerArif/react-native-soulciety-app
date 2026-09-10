@@ -1,4 +1,5 @@
-const GEMINI_API_KEY = "YOUR_RESTRICTED_KEY";
+// Gemini API Key — must be set via EXPO_PUBLIC_GEMINI_API_KEY env variable
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const GEMINI_MODEL = "gemini-1.5-flash";
 
 export async function askGemini(prompt: string): Promise<string> {

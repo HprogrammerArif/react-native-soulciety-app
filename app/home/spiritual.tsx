@@ -64,7 +64,7 @@ export default function SpiritualScreen() {
 
         return res.data ?? [];
       } catch (error: any) {
-        console.log(
+        if (__DEV__) console.log(
           "❌ Videos fetch error:",
           error?.response?.data || error.message,
         );

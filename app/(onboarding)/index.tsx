@@ -49,7 +49,7 @@ export default function Onboarding() {
       await AsyncStorage.setItem("onboarding", "true")
       router.replace("/(auth)/login")
     } catch (error) {
-      console.log(error)
+      if (__DEV__) console.log(error)
     }
   }
 

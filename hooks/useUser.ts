@@ -14,6 +14,7 @@ import {
   verifyOtp,
   googleLogin,
   appleLogin,
+  deleteUserAccount,
 } from "@/services/user.api";
 
 import {
@@ -55,18 +56,15 @@ export const useUser = () => {
   const loginMutation = useMutation<AuthResponse, Error, LoginPayload>({
     mutationFn: loginUser,
     onSuccess: async (data) => {
-      console.log("Login Response Data", data);
+      if (__DEV__) console.log("Login Response Data", data);
       if (data?.access) {
         await AsyncStorage.setItem("accessToken", data.access);
         await AsyncStorage.setItem("refreshToken", data.refresh);
-        setHasToken(true); // Update token state
+        setHasToken(true);
 
         // fetch & cache profile immediately
-        console.log("Get profile is calling");
         const profile = await getProfile();
-        console.log("After profile is calling");
         await storeProfile(profile);
-
         queryClient.setQueryData(["profile"], profile);
       }
     },
@@ -76,18 +74,14 @@ export const useUser = () => {
   const profileQuery = useQuery<Profile | null>({
     queryKey: ["profile"],
     queryFn: async () => {
-      // const stored = await getStoredProfile();
-      // if (stored) return stored;
-
       const profile = await getProfile();
-      console.log("Profile from hook", profile);
-      // await storeProfile(profile);
+      if (__DEV__) console.log("Profile from hook", profile);
       return profile;
     },
-    enabled: hasToken === true, // Only fetch profile if user has a token
+    enabled: hasToken === true,
     retry: false,
     initialData: () => queryClient.getQueryData(["profile"]),
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000, // 5 minutes — allows periodic refresh
     gcTime: Infinity,
   });
 
@@ -121,17 +115,11 @@ export const useUser = () => {
   /* ---------------- VERIFY OTP ---------------- */
   const verifyOtpMutation = useMutation<AuthResponse, Error, VerifyOtpPayload>({
     mutationFn: verifyOtp,
-    onSuccess: async (data) => {
-      // if (data?.access) {
-      //   await AsyncStorage.setItem("accessToken", data.access);
-      //   setHasToken(true); // Update token state
-      //   const profile = await getProfile();
-      //   await storeProfile(profile);
-      //   queryClient.setQueryData(["profile"], profile);
-      // }
+    onSuccess: async () => {
+      // OTP verification handled — user can now login
     },
     onError: async (data) => {
-      console.log(data.message);
+      if (__DEV__) console.log(data.message);
     },
   });
 
@@ -157,7 +145,7 @@ export const useUser = () => {
   >({
     mutationFn: googleLogin,
     onSuccess: async (data) => {
-      console.log("Google Login Response Data", data);
+      if (__DEV__) console.log("Google Login Response Data", data);
       if (data?.access) {
         await AsyncStorage.setItem("accessToken", data.access);
         await AsyncStorage.setItem("refreshToken", data.refresh);
@@ -178,7 +166,7 @@ export const useUser = () => {
   >({
     mutationFn: appleLogin,
     onSuccess: async (data) => {
-      console.log("Apple Login Response Data", data);
+      if (__DEV__) console.log("Apple Login Response Data", data);
       if (data?.access) {
         await AsyncStorage.setItem("accessToken", data.access);
         await AsyncStorage.setItem("refreshToken", data.refresh);
@@ -191,11 +179,23 @@ export const useUser = () => {
     },
   });
 
+  /* ---------------- DELETE ACCOUNT ---------------- */
+  const deleteAccountFn = async () => {
+    await deleteUserAccount();
+    await AsyncStorage.removeItem("accessToken");
+    await AsyncStorage.removeItem("refreshToken");
+    await clearProfile();
+    setHasToken(false);
+    queryClient.removeQueries({ queryKey: ["profile"] });
+    queryClient.clear();
+  };
+
   /* ---------------- LOGOUT ---------------- */
   const logout = async () => {
     await AsyncStorage.removeItem("accessToken");
+    await AsyncStorage.removeItem("refreshToken");
     await clearProfile();
-    setHasToken(false); // Update token state
+    setHasToken(false);
 
     queryClient.removeQueries({
       queryKey: ["profile"],
@@ -220,6 +220,7 @@ export const useUser = () => {
     updateProfile: updateProfileMutation.mutateAsync,
     googleLogin: googleLoginMutation.mutateAsync,
     appleLogin: appleLoginMutation.mutateAsync,
+    deleteAccount: deleteAccountFn,
 
     /* states */
     registerState: registerMutation,

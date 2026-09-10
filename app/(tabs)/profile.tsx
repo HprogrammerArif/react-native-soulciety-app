@@ -6,7 +6,9 @@ import {
 } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
 import {
     ActivityIndicator,
     Image,
@@ -34,17 +36,52 @@ import SatisfiedIcon from "@/assets/images/satisfied.svg";
 import SickIcon from "@/assets/images/sick.svg";
 
 import ChangeMoodModal from "@/components/modules/profile/ChangeMoodModal";
+import DeleteAccountModal from "@/components/modules/profile/DeleteAccountModal";
 import LogoutModal from "@/components/modules/profile/LogoutModal";
 import { useUser } from "@/hooks/useUser";
 import Toast from "react-native-toast-message";
 
 export default function ProfileScreen() {
     const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
+
+    useEffect(() => {
+        const loadNotificationPref = async () => {
+            try {
+                const val = await AsyncStorage.getItem("@notifications_enabled");
+                if (val !== null) {
+                    setIsNotificationEnabled(val === "true");
+                }
+            } catch (e) {
+                if (__DEV__) console.log("Error loading notification pref", e);
+            }
+        };
+        loadNotificationPref();
+    }, []);
+
+    const handleToggleNotification = async (enabled: boolean) => {
+        setIsNotificationEnabled(enabled);
+        try {
+            Haptics.selectionAsync();
+        } catch {}
+        try {
+            await AsyncStorage.setItem("@notifications_enabled", enabled ? "true" : "false");
+            Toast.show({
+                type: "info",
+                text1: enabled ? "Notifications Enabled" : "Notifications Disabled",
+                text2: enabled ? "You will receive daily reminders and updates." : "Push notifications paused.",
+                visibilityTime: 2000,
+            });
+        } catch (e) {
+            if (__DEV__) console.log("Error saving notification pref", e);
+        }
+    };
     const [logoutModalVisibal, setLogoutModalVisibal] = useState(false);
     const [changeMoodModalVisible, setChangeMoodModalVisible] = useState(false);
+    const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
     const { moodKey, loading, saving, saveMood } = useMood();
-    const { logout, loginState, profile, updateProfile, updateProfileState } = useUser()
+    const { logout, loginState, profile, updateProfile, updateProfileState, deleteAccount } = useUser()
 
     // --- MOOD MAP (KEY BASED) ---
     const MOOD_MAP: Record<
@@ -71,7 +108,26 @@ export default function ProfileScreen() {
             Toast.show({ type: "success", text1: "Logout Successfully!", text2: "Please log in again." });
             router.replace("/(auth)/login")
         } catch (error) {
-            console.log(error)
+            if (__DEV__) console.log(error)
+        }
+    }
+
+    const handleDeleteAccount = async () => {
+        setIsDeletingAccount(true);
+        try {
+            await deleteAccount();
+            setDeleteAccountModalVisible(false);
+            Toast.show({ type: "success", text1: "Account Deleted", text2: "Your account has been permanently deleted." });
+            router.replace("/(auth)/login");
+        } catch (error: any) {
+            if (__DEV__) console.log(error);
+            Toast.show({
+                type: "error",
+                text1: "Failed to delete account",
+                text2: error?.response?.data?.detail || "Something went wrong. Please try again.",
+            });
+        } finally {
+            setIsDeletingAccount(false);
         }
     }
 
@@ -84,7 +140,7 @@ export default function ProfileScreen() {
             // Navigate to change mood screen
             router.push("/profile/change-mood");
         } catch (error) {
-            console.log(error);
+            if (__DEV__) console.log(error);
         }
     }
 
@@ -119,6 +175,8 @@ export default function ProfileScreen() {
             onPress={onPress}
             disabled={showSwitch}
             className="flex-row items-center justify-between py-4"
+            accessibilityRole="button"
+            accessibilityLabel={label}
         >
             <View className="flex-row items-center gap-4">
                 <View
@@ -141,8 +199,9 @@ export default function ProfileScreen() {
                         trackColor={{ false: "#767577", true: "#FCD34D" }}
                         thumbColor={"#fff"}
                         ios_backgroundColor="#3e3e3e"
-                        onValueChange={setIsNotificationEnabled}
+                        onValueChange={handleToggleNotification}
                         value={isNotificationEnabled}
+                        accessibilityLabel="Toggle notifications"
                     />
                 )}
                 {showArrow && (
@@ -164,13 +223,17 @@ export default function ProfileScreen() {
             >
                 {/* HEADER */}
                 <View className="items-center mt-8 mb-8">
-                    <Image
-                        source={{
-                            uri: profile?.data?.profile_picture_url ??
-                                "https://img.icons8.com/?size=100&id=zj0HDoXpmTPF&format=png&color=000000",
-                        }}
-                        className="w-28 h-28 rounded-full border-4 border-white shadow-sm"
-                    />
+                    {profile?.data?.profile_picture_url ? (
+                        <Image
+                            source={{ uri: profile.data.profile_picture_url }}
+                            className="w-28 h-28 rounded-full border-4 border-white shadow-sm"
+                            accessibilityLabel="Profile picture"
+                        />
+                    ) : (
+                        <View className="w-28 h-28 rounded-full border-4 border-white shadow-sm bg-yellow-100 items-center justify-center">
+                            <Ionicons name="person" size={56} color="#CA8A04" />
+                        </View>
+                    )}
                     <Text className="text-2xl font-bold text-gray-900 mt-4">
                         {profile?.data?.full_name}
                     </Text>
@@ -221,6 +284,7 @@ export default function ProfileScreen() {
                             onPress={() => setChangeMoodModalVisible(true)}
                             disabled={saving}
                             className="flex-row items-center gap-2"
+                            accessibilityLabel="Change mood"
                         >
                             {saving ? (
                                 <ActivityIndicator size="small" color="#6B7280" />
@@ -261,7 +325,7 @@ export default function ProfileScreen() {
                         />
                     </View>
 
-                    {/* SUPPORT */}
+                    {/* LEGAL & SUPPORT */}
                     <View className="bg-white rounded-3xl px-5 py-2 shadow-sm border border-gray-100">
                         <MenuItem
                             label="Help center"
@@ -274,9 +338,33 @@ export default function ProfileScreen() {
                             }
                             onPress={() => router.push("/profile/help-center")}
                         />
+                        <View className="h-[1px] bg-gray-50 w-full" />
+                        <MenuItem
+                            label="Privacy Policy"
+                            icon={
+                                <Feather
+                                    name="shield"
+                                    size={20}
+                                    color="#4B5563"
+                                />
+                            }
+                            onPress={() => router.push({ pathname: "/profile/legal", params: { type: "privacy" } })}
+                        />
+                        <View className="h-[1px] bg-gray-50 w-full" />
+                        <MenuItem
+                            label="Terms of Service"
+                            icon={
+                                <Feather
+                                    name="file-text"
+                                    size={20}
+                                    color="#4B5563"
+                                />
+                            }
+                            onPress={() => router.push({ pathname: "/profile/legal", params: { type: "terms" } })}
+                        />
                     </View>
 
-                    {/* LOGOUT */}
+                    {/* LOGOUT & DELETE */}
                     <View className="bg-white rounded-3xl px-5 py-2 shadow-sm border border-gray-100">
                         <MenuItem
                             label="Log out"
@@ -286,6 +374,16 @@ export default function ProfileScreen() {
                             showArrow={false}
                             isDestructive
                             onPress={() => setLogoutModalVisibal(true)}
+                        />
+                        <View className="h-[1px] bg-gray-50 w-full" />
+                        <MenuItem
+                            label="Delete Account"
+                            icon={
+                                <Feather name="trash-2" size={20} color="#EF4444" />
+                            }
+                            showArrow={false}
+                            isDestructive
+                            onPress={() => setDeleteAccountModalVisible(true)}
                         />
                     </View>
 
@@ -301,6 +399,13 @@ export default function ProfileScreen() {
                         onConfirm={handleChangeMoodConfirm}
                         loading={saving}
                         onCancel={() => setChangeMoodModalVisible(false)}
+                    />
+
+                    <DeleteAccountModal
+                        visible={deleteAccountModalVisible}
+                        onConfirm={handleDeleteAccount}
+                        loading={isDeletingAccount}
+                        onCancel={() => setDeleteAccountModalVisible(false)}
                     />
                 </View>
             </ScrollView>

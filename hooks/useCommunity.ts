@@ -199,7 +199,7 @@ export const useCommunity = (activeTab?: string) => {
     onError: (err: any, variables, context) => {
       // Rollback on error
       queryClient.setQueryData(queryKey, context?.previousPosts);
-      console.log("err", err?.response?.data);
+      if (__DEV__) console.log("err", err?.response?.data);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["community", "posts"] });
@@ -216,7 +216,7 @@ export const useCommunity = (activeTab?: string) => {
       formData: FormData;
     }) => {
       try {
-        console.log("Sending update request for post:", postId);
+        if (__DEV__) console.log("Sending update request for post:", postId);
         const res = await api.put(
           `/api/community/posts/details/${postId}/`,
           formData,
@@ -227,10 +227,10 @@ export const useCommunity = (activeTab?: string) => {
             },
           },
         );
-        console.log("Update response:", res.data);
+        if (__DEV__) console.log("Update response:", res.data);
         return res.data;
       } catch (error: any) {
-        console.error(
+        if (__DEV__) console.error(
           "API update error:",
           error.response?.data || error.message,
         );

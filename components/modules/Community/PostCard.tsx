@@ -8,6 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import Toast from 'react-native-toast-message';
 import CommentBottomSheet from './CommentBottomSheet';
 
@@ -62,11 +64,11 @@ export default function PostCard({ item, users, onFollowPress, activeTab }: any)
 
             if (!result.canceled && result.assets && result.assets[0]) {
                 const imageUri = result.assets[0].uri;
-                console.log('Selected image URI:', imageUri);
+                if (__DEV__) console.log('Selected image URI:', imageUri);
                 setSelectedImage(imageUri);
             }
         } catch (error) {
-            console.error('Image picker error:', error);
+            if (__DEV__) console.error('Image picker error:', error);
             Alert.alert('Error', 'Failed to pick image');
         }
     };
@@ -108,14 +110,14 @@ export default function PostCard({ item, users, onFollowPress, activeTab }: any)
                         type: mimeType,
                     });
 
-                    console.log('Image appended:', { fileName, mimeType, uri: selectedImage });
+                    if (__DEV__) console.log('Image appended:', { fileName, mimeType, uri: selectedImage });
                 } catch (imgError) {
-                    console.error('Image processing error:', imgError);
+                    if (__DEV__) console.error('Image processing error:', imgError);
                     throw new Error('Failed to process image');
                 }
             }
 
-            console.log('Updating post with ID:', item.id);
+            if (__DEV__) console.log('Updating post with ID:', item.id);
 
             // ✅ Pass as a single object with postId and formData
             await updatePost({ postId: item.id, formData });
@@ -123,9 +125,8 @@ export default function PostCard({ item, users, onFollowPress, activeTab }: any)
             updateSheetRef.current?.dismiss();
             Alert.alert("Success", "Post updated successfully");
         } catch (error: any) {
-            console.error("Update error:", error);
-            console.error("Error response:", error?.response?.data);
-            console.error("Error message:", error?.message);
+            if (__DEV__) console.error("Update error:", error);
+            if (__DEV__) console.error("Error response:", error?.response?.data);
 
             // Show more specific error message
             const errorMessage = error?.response?.data?.message
@@ -147,11 +148,11 @@ export default function PostCard({ item, users, onFollowPress, activeTab }: any)
                 error?.message === 'Network Error' ||
                 error?.code === 'ERR_CANCELED'
             ) {
-                console.log('Delete request aborted safely');
+                if (__DEV__) console.log('Delete request aborted safely');
                 return;
             }
 
-            console.error('Delete error:', error);
+            if (__DEV__) console.error('Delete error:', error);
             Alert.alert('Error', 'Failed to delete post');
         }
     };
@@ -187,7 +188,7 @@ export default function PostCard({ item, users, onFollowPress, activeTab }: any)
             setReportReason('');
             setReportModalVisible(false);
         } catch (error: any) {
-            console.error('Report error:', error);
+            if (__DEV__) console.error('Report error:', error);
             Toast.show({
                 type: 'error',
                 text1: 'Error',
@@ -198,13 +199,64 @@ export default function PostCard({ item, users, onFollowPress, activeTab }: any)
         }
     };
 
-    console.log(item?.user?.profile_picture_url, "profile")
+    const handleBlockPrompt = () => {
+        optionsSheetRef.current?.dismiss();
+        Alert.alert(
+            "Block User",
+            `Are you sure you want to block ${item.user?.full_name || 'this user'}? You will no longer see posts or comments from them.`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Block",
+                    style: "destructive",
+                    onPress: handleBlockConfirm,
+                },
+            ]
+        );
+    };
+
+    const handleBlockConfirm = async () => {
+        try {
+            try {
+                await api.post('/api/community/users/block/', { user_id: item.user?.id });
+            } catch (apiErr) {
+                if (__DEV__) console.log("Backend block endpoint not available, persisting locally", apiErr);
+            }
+
+            const existingBlocked = await AsyncStorage.getItem("@blocked_users");
+            const blockedList: string[] = existingBlocked ? JSON.parse(existingBlocked) : [];
+            if (!blockedList.includes(String(item.user?.id))) {
+                blockedList.push(String(item.user?.id));
+                await AsyncStorage.setItem("@blocked_users", JSON.stringify(blockedList));
+            }
+
+            Toast.show({
+                type: 'success',
+                text1: 'User Blocked',
+                text2: `You will no longer see content from ${item.user?.full_name || 'this user'}.`,
+            });
+        } catch (err) {
+            if (__DEV__) console.error("Block user error:", err);
+            Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: 'Failed to block user',
+            });
+        }
+    };
+
     return (
         <View className="bg-white p-5 mb-3 border-t border-gray-100">
             {/* Header */}
             <View className="flex-row justify-between items-start mb-3">
                 <View className="flex-row gap-3">
-                    <Image source={{ uri: item?.user?.profile_picture_url || 'https://via.placeholder.com/150' }} className="w-10 h-10 rounded-full bg-gray-100" />
+                    {item?.user?.profile_picture_url ? (
+                        <Image source={{ uri: item.user.profile_picture_url }} className="w-10 h-10 rounded-full bg-gray-100" />
+                    ) : (
+                        <View className="w-10 h-10 rounded-full bg-yellow-100 items-center justify-center border border-yellow-200">
+                            <Ionicons name="person" size={18} color="#CA8A04" />
+                        </View>
+                    )}
                     <View>
                         <Text className="font-bold text-gray-900">{item.user?.full_name}</Text>
                         <Text className="text-xs text-gray-500">{formatRelativeDate(item.created_at)}</Text>
@@ -221,19 +273,34 @@ export default function PostCard({ item, users, onFollowPress, activeTab }: any)
 
             {/* Actions */}
             <View className="flex-row items-center gap-6 pt-3 border-t border-gray-50">
-                <TouchableOpacity onPress={() => likePost(item.id)} className="flex-row items-center gap-1.5">
+                <TouchableOpacity
+                    onPress={() => {
+                        try {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        } catch {}
+                        likePost(item.id);
+                    }}
+                    className="flex-row items-center gap-1.5"
+                    accessibilityRole="button"
+                    accessibilityLabel={isLiked ? `Unlike post, ${item.likes_count || 0} likes` : `Like post, ${item.likes_count || 0} likes`}
+                >
                     <Ionicons name={isLiked ? "heart" : "heart-outline"} size={22} color={isLiked ? "#EF4444" : "#6B7280"} />
                     <Text className={`text-sm font-medium ${isLiked ? 'text-red-500' : 'text-gray-500'}`}>{item.likes_count || 0}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => commentSheetRef.current?.present()} className="flex-row items-center gap-1.5">
+                <TouchableOpacity
+                    onPress={() => commentSheetRef.current?.present()}
+                    className="flex-row items-center gap-1.5"
+                    accessibilityRole="button"
+                    accessibilityLabel={`View comments, ${item.comments_count || 0} comments`}
+                >
                     <Ionicons name="chatbubble-outline" size={20} color="#6B7280" />
                     <Text className="text-gray-500 text-sm font-medium">{item.comments_count || 0}</Text>
                 </TouchableOpacity>
             </View>
 
             {/* Options Menu */}
-            <BottomSheetModal ref={optionsSheetRef} index={0} snapPoints={isOwner ? ['25%'] : ['28%']} backdropComponent={renderBackdrop}>
+            <BottomSheetModal ref={optionsSheetRef} index={0} snapPoints={isOwner ? ['25%'] : ['36%']} backdropComponent={renderBackdrop}>
                 <BottomSheetView className="p-6" style={{ paddingBottom: insets.bottom + 20, }}>
                     {isOwner ? (
                         <>
@@ -270,6 +337,13 @@ export default function PostCard({ item, users, onFollowPress, activeTab }: any)
                                 <Ionicons name="flag-outline" size={22} color="#EF4444" />
                                 <Text className="ml-4 text-lg font-medium text-red-500">Report Post</Text>
                             </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={handleBlockPrompt}
+                                className="flex-row items-center py-3"
+                            >
+                                <Ionicons name="ban-outline" size={22} color="#EF4444" />
+                                <Text className="ml-4 text-lg font-medium text-red-500">Block User</Text>
+                            </TouchableOpacity>
                         </>
                     )}
                 </BottomSheetView>
@@ -305,10 +379,16 @@ export default function PostCard({ item, users, onFollowPress, activeTab }: any)
                     />
 
                     <TouchableOpacity onPress={pickImage} className="relative">
-                        <Image
-                            source={{ uri: selectedImage || 'https://via.placeholder.com/150' }}
-                            className="w-full h-40 rounded-2xl bg-gray-200"
-                        />
+                        {selectedImage ? (
+                            <Image
+                                source={{ uri: selectedImage }}
+                                className="w-full h-40 rounded-2xl bg-gray-200"
+                            />
+                        ) : (
+                            <View className="w-full h-40 rounded-2xl bg-gray-100 items-center justify-center border border-dashed border-gray-300">
+                                <Ionicons name="image-outline" size={32} color="#9CA3AF" />
+                            </View>
+                        )}
                         <View className="absolute inset-0 bg-black/20 rounded-2xl flex items-center justify-center">
                             <Ionicons name="camera" size={30} color="white" />
                             <Text className="text-white font-medium mt-1">Change Photo</Text>

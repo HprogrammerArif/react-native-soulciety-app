@@ -70,7 +70,7 @@ export default function ProfileSettingScreen() {
         setIsEditing(true);
       }
     } catch (err) {
-      console.log("Image Error", err);
+      if (__DEV__) console.log("Image Error", err);
     }
   };
 
@@ -92,11 +92,11 @@ export default function ProfileSettingScreen() {
       }
 
       const response = await updateProfile(formData);
-      console.log("Upload Success:", response);
+      if (__DEV__) console.log("Upload Success:", response);
       setIsEditing(false);
       Toast.show({ type: "success", text1: "Profile updated successfully" });
     } catch (error: any) {
-      console.error("Profile update error:", error.response?.data || error.message);
+      if (__DEV__) console.error("Profile update error:", error.response?.data || error.message);
       Alert.alert("Error", "Failed to update profile");
     }
   };

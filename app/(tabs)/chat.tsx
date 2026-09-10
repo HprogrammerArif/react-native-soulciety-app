@@ -3,6 +3,7 @@ import { HistoryMenuModal } from '@/components/modules/Chat/HistoryMenuModal';
 import { MarkdownText } from '@/components/modules/Chat/MarkdownText';
 import { VoiceModeModal } from '@/components/modules/Chat/VoiceModeModal';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -288,7 +289,7 @@ export default function ChatScreen() {
         const allMessages: BackendMessage[] = [];
 
         while (nextUrl) {
-            const res = await api.get<PaginatedMessagesResponse>(nextUrl);
+            const res: any = await api.get<PaginatedMessagesResponse>(nextUrl);
             allMessages.push(...res.data.results);
             nextUrl = res.data.next;
         }
@@ -312,6 +313,10 @@ export default function ChatScreen() {
     const handleSend = async (textOverride?: string) => {
         const textToSend = textOverride || inputText;
         if (!textToSend.trim() || isThinking) return;
+
+        try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        } catch {}
 
         const optimisticMessageId = `temp_${Date.now()}`;
         const userMsg: Message = {
@@ -392,6 +397,9 @@ export default function ChatScreen() {
 
                 return [...prev, aiMsg];
             });
+            try {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch {}
             getHistory().catch(() => null);
 
         } catch (err: any) {
@@ -461,6 +469,13 @@ export default function ChatScreen() {
 
     const renderWelcomeState = () => (
         <View className="flex-1 px-5 justify-end pb-10">
+            {/* AI Disclaimer */}
+            <View className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-4">
+                <Text className="text-yellow-800 text-xs leading-5 text-center">
+                    Soulciety AI is for spiritual guidance and personal reflection only. It is not a substitute for professional medical, psychological, or psychiatric advice.
+                </Text>
+            </View>
+
             <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() =>
@@ -554,6 +569,8 @@ export default function ChatScreen() {
                 <TouchableOpacity
                     onPress={() => setIsMenuVisible(true)}
                     className="w-11 h-11 bg-gray-100 rounded-full justify-center items-center mr-3"
+                    accessibilityRole="button"
+                    accessibilityLabel="Chat menu and conversation history"
                 >
                     <MenuIcon color="black" />
                 </TouchableOpacity>
@@ -585,28 +602,42 @@ export default function ChatScreen() {
                     />
                 )}
 
+                {/* DAILY LIMIT BANNER */}
+                {dailyLimitReached && (
+                    <View className="bg-amber-50 px-5 py-2.5 border-t border-amber-200 flex-row items-center gap-2">
+                        <Ionicons name="information-circle" size={18} color="#D97706" />
+                        <Text className="text-amber-800 text-xs font-medium flex-1">
+                            Daily limit reached (10 messages). Resets tomorrow.
+                        </Text>
+                    </View>
+                )}
+
                 {/* INPUT BAR */}
                 <View className="px-5 py-4 bg-white border-t border-gray-50 flex-row items-center gap-3">
                     <TextInput
                         className="flex-1 bg-gray-100 h-14 rounded-full px-5 text-base text-gray-800"
-                        placeholder="Write"
+                        placeholder={dailyLimitReached ? "Daily limit reached" : "Ask Soulciety AI..."}
                         placeholderTextColor="#9CA3AF"
                         value={inputText}
                         onChangeText={setInputText}
                         returnKeyType="send"
                         onSubmitEditing={() => handleSend()}
                         editable={!dailyLimitReached}
+                        accessibilityLabel="Message input field"
                     />
 
                     <TouchableOpacity
                         onPress={() => handleSend()}
-                        disabled={dailyLimitReached || isThinking}
-                        className={`w-12 h-12 rounded-full justify-center items-center ${dailyLimitReached || isThinking
+                        disabled={dailyLimitReached || isThinking || !inputText.trim()}
+                        accessibilityRole="button"
+                        accessibilityLabel="Send message"
+                        className={`w-12 h-12 rounded-full justify-center items-center ${
+                            dailyLimitReached || isThinking || !inputText.trim()
                                 ? 'bg-gray-300'
                                 : 'bg-yellow-400'
-                            }`}
+                        }`}
                     >
-                        <Ionicons name="arrow-up" size={24} color={dailyLimitReached || isThinking ? '#9CA3AF' : 'black'} />
+                        <Ionicons name="arrow-up" size={24} color={dailyLimitReached || isThinking || !inputText.trim() ? '#9CA3AF' : 'black'} />
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>

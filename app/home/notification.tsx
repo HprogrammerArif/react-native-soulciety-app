@@ -36,7 +36,7 @@ export default function NotificationScreen() {
         const res = await api.get(`/api/notifications/?unread=${activeTab === "unread"}`);
         return res.data.notifications ?? [];
       } catch (error) {
-        console.log(error);
+        if (__DEV__) console.log(error);
         return []; // Return an empty array in case of error
       }
     },
@@ -56,12 +56,12 @@ export default function NotificationScreen() {
     if (!notification.is_read) {
       try {
         const res = await api.post(`/api/notifications/${notification.id}/read/`);
-        console.log(res.data);
+        if (__DEV__) console.log(res.data);
 
         // Refetch notifications to update the UI after marking as read
         refetch();
       } catch (error) {
-        console.log(error);
+        if (__DEV__) console.log(error);
       }
     }
 

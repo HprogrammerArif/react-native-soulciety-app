@@ -13,13 +13,12 @@ import {
 import axios from "axios";
 import Constants from "expo-constants";
 
-// const BASE_URL = "http://10.10.13.69:8000";
 const BASE_URL = Constants.expoConfig?.extra?.BACKEND_URL;
 
 export const registerUser = async (
   payload: RegisterPayload,
 ): Promise<AuthResponse> => {
-  console.log("Register Payload: ", payload);
+  if (__DEV__) console.log("Register Payload: ", { email: payload.email, full_name: payload.full_name });
   const { data } = await axios.post(`${BASE_URL}/api/auth/register/`, payload);
   return data;
 };
@@ -27,22 +26,21 @@ export const registerUser = async (
 export const loginUser = async (
   payload: LoginPayload,
 ): Promise<AuthResponse> => {
-  console.log("Login Payload: ", payload);
+  if (__DEV__) console.log("Login Payload: ", { email: payload.email });
   const { data } = await axios.post(`${BASE_URL}/api/auth/login/`, payload);
-  console.log("Login Response", data);
+  if (__DEV__) console.log("Login Response received");
   return data;
 };
 
 export const getProfile = async (): Promise<Profile> => {
   const { data } = await api.get("/api/profile/users/");
-  console.log("Data from get Profile", data);
   return data;
 };
 
 export const forgotPassword = async (
   payload: ForgotPasswordPayload,
 ): Promise<AuthResponse> => {
-  console.log("Forget Pass Payload: ", payload);
+  if (__DEV__) console.log("Forget Pass Payload: ", payload);
   const { data } = await api.post("/api/auth/forgot-password/", payload);
   return data;
 };
@@ -50,13 +48,13 @@ export const forgotPassword = async (
 export const resetPassword = async (
   payload: ResetPasswordPayload,
 ): Promise<AuthResponse> => {
-  console.log("Reset Pass Payload: ", payload);
+  if (__DEV__) console.log("Reset Pass Payload: ", { email: payload.email });
   const { data } = await api.post("/api/auth/reset-password/", payload);
   return data;
 };
 
 export const verifyOtp = async (payload: VerifyOtpPayload) => {
-  console.log("Verify OTP Payload: ", payload);
+  if (__DEV__) console.log("Verify OTP Payload: ", { email: payload.email });
   const { data } = await axios.post(
     `${BASE_URL}/api/auth/verify-otp/`,
     payload,
@@ -67,7 +65,7 @@ export const verifyOtp = async (payload: VerifyOtpPayload) => {
 export const resendOtp = async (
   payload: ResendOtpPayload,
 ): Promise<AuthResponse> => {
-  console.log("Resend OTP Payload: ", payload);
+  if (__DEV__) console.log("Resend OTP Payload: ", { email: payload.email });
   const { data } = await axios.post(
     `${BASE_URL}/api/auth/resend-otp/`,
     payload,
@@ -78,20 +76,17 @@ export const resendOtp = async (
 export const setNewPassword = async (
   payload: SetPasswordPayload,
 ): Promise<AuthResponse> => {
-  console.log("Set Pass Payload: ", payload);
   const { data } = await api.patch("/accounts/api/change-password", payload);
-  //   console.log(data);
   return data;
 };
 
 export const updateProfile = async (payload: FormData): Promise<Profile> => {
-  console.log("Update Profile Payload: ", payload);
+  if (__DEV__) console.log("Updating profile...");
 
   const { data } = await api.put("/api/profile/users/", payload, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
-    // REMOVE transformRequest: (data) => data
   });
 
   return data;
@@ -102,12 +97,12 @@ export const googleLogin = async (payload: {
   full_name?: string;
   image?: string;
 }): Promise<AuthResponse> => {
-  console.log("Google Login Payload: ", payload);
+  if (__DEV__) console.log("Google Login Payload: ", { email: payload.email });
   const { data } = await axios.post(
     `${BASE_URL}/api/auth/social/google/`,
     payload,
   );
-  console.log("Google Login Response", data);
+  if (__DEV__) console.log("Google Login Response received");
   return data;
 };
 
@@ -116,11 +111,19 @@ export const appleLogin = async (payload: {
   full_name?: string;
   image?: string;
 }): Promise<AuthResponse> => {
-  console.log("Apple Login Payload: ", payload);
+  if (__DEV__) console.log("Apple Login Payload: ", { email: payload.email });
   const { data } = await axios.post(
     `${BASE_URL}/api/auth/social/apple/`,
     payload,
   );
-  console.log("Apple Login Response", data);
+  if (__DEV__) console.log("Apple Login Response received");
   return data;
+};
+
+/**
+ * Delete the current user's account and all associated data.
+ * This is required by both Apple App Store and Google Play Store.
+ */
+export const deleteUserAccount = async (): Promise<void> => {
+  await api.delete("/api/auth/account/delete/");
 };
